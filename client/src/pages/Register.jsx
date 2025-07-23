@@ -13,7 +13,7 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault()
     try {
-      await register({ username: name, email, password, role }) // note: backend expects "username"
+      await register({ name, email, password, role })
       navigate('/login')
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed')

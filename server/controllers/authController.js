@@ -2,27 +2,27 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-// Créer un nouvel utilisateur (Register)
 exports.register = async (req, res) => {
-  const { name, email, password, role } = req.body;
-
+  const { name, email, password, role } = req.body
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser)
-      return res.status(400).json({ message: "Email already in use" });
+    const existingUser = await User.findOne({ $or: [{ email }, { name }] })
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email or name already in use' })
+    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = new User({ name, email, password: hashedPassword, role });
-    await user.save();
-
-    res.status(201).json({ message: "User registered successfully", user });
+    const hashedPassword = await bcrypt.hash(password, 10)
+    const user = new User({ name, email, password: hashedPassword, role })
+    await user.save()
+    res.status(201).json({ message: 'User registered successfully' })
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error('Registration Error:', err)
+    res.status(500).json({ message: 'Server error. Please try again later.' })
   }
-};
+}
 
-// Connexion d’un utilisateur (Login)
+
+
+
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 

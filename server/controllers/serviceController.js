@@ -17,7 +17,7 @@ exports.createService = async (req, res) => {
 exports.getAllServices = async (req, res) => {
   try {
     const services = await Service.find();
-    res.json(services);
+    res.json({services});
   } catch (err) {
     res
       .status(500)

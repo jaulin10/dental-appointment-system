@@ -17,7 +17,7 @@ exports.createDentist = async (req, res) => {
 exports.getAllDentists = async (req, res) => {
   try {
     const dentists = await Dentist.find();
-    res.json(dentists);
+    res.json({data: dentists});
   } catch (err) {
     res
       .status(500)

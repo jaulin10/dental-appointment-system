@@ -16,10 +16,19 @@ exports.validateLogin = [
   body("password").notEmpty().withMessage("Password is required"),
 ];
 
-// Validation pour les rendez-vous
 exports.validateAppointment = [
-  body("doctorId").notEmpty().withMessage("Doctor ID is required"),
-  body("appointmentDate")
+  body('patientId').notEmpty().withMessage('Patient ID is required'),
+  body('dentistId').notEmpty().withMessage('Dentist ID is required'),
+  body('serviceId').notEmpty().withMessage('Service ID is required'),
+  body('appointmentDate')
     .notEmpty()
-    .withMessage("Appointment date is required"),
-];
+    .withMessage('Appointment date is required'),
+  body('appointmentTime')
+    .notEmpty()
+    .withMessage('Appointment time is required'),
+  body('reason')
+    .notEmpty()
+    .withMessage('Reason for appointment is required')
+    .isLength({ max: 500 })
+    .withMessage('Reason cannot exceed 500 characters'),
+]
