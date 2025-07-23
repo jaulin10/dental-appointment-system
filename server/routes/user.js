@@ -5,7 +5,7 @@ const auth = require("../middleware/auth");
 const userController = require("../controllers/authController");
 
 const userValidation = [
-  body("username").notEmpty(),
+  body("name").notEmpty(),
   body("email").isEmail(),
   body("password").isLength({ min: 6 }),
   body("role").isIn(["admin", "receptionist", "dentist"]),

@@ -4,7 +4,7 @@ const User = require("../models/User");
 
 // Créer un nouvel utilisateur (Register)
 exports.register = async (req, res) => {
-  const { username, email, password, role } = req.body;
+  const { name, email, password, role } = req.body;
 
   try {
     const existingUser = await User.findOne({ email });
@@ -13,7 +13,7 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = new User({ username, email, password: hashedPassword, role });
+    const user = new User({ name, email, password: hashedPassword, role });
     await user.save();
 
     res.status(201).json({ message: "User registered successfully", user });
@@ -46,7 +46,7 @@ exports.login = async (req, res) => {
       token,
       user: {
         id: user._id,
-        username: user.username,
+        name: user.name,
         email: user.email,
         role: user.role,
       },

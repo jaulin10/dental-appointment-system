@@ -4,7 +4,7 @@ const { body } = require("express-validator");
 const authController = require("../controllers/authController");
 
 const registerValidation = [
-  body("username").notEmpty(),
+  body("name").notEmpty(),
   body("email").isEmail(),
   body("password").isLength({ min: 6 }),
 ];
