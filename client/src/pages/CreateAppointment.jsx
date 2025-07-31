@@ -1,189 +1,199 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createAppointment } from '../api/appointments'
-import axios from 'axios'
 
-export default function CreateAppointment() {
-  const [patients, setPatients] = useState([])
-  const [dentists, setDentists] = useState([])
-  const [services, setServices] = useState([])
-
-  const [patientId, setPatientId] = useState('')
-  const [dentistId, setDentistId] = useState('')
-  const [serviceId, setServiceId] = useState('')
-  const [appointmentDate, setAppointmentDate] = useState('')
-  const [appointmentTime, setAppointmentTime] = useState('')
-  const [reason, setReason] = useState('')
-  const [notes, setNotes] = useState('')
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-
+const CreateAppointment = () => {
   const navigate = useNavigate()
 
+  const [formData, setFormData] = useState({
+    patientId: '',
+    dentistId: '',
+    date: '',
+    time: '',
+    description: '',
+  })
+
+  const [patients, setPatients] = useState([])
+  const [dentists, setDentists] = useState([])
+
+  // Fetch users and separate by role
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchUsers = async () => {
       try {
-        const patientsRes = await axios.get('/api/patients')
-        const dentistsRes = await axios.get('/api/dentists')
-        const servicesRes = await axios.get('/api/services')
+        const res = await fetch('http://localhost:3000/api/users', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        })
 
-        const patientsData = patientsRes.data.data || patientsRes.data
-        const dentistsData = dentistsRes.data.data || dentistsRes.data
-        const servicesData = servicesRes.data.data || servicesRes.data
+        const data = await res.json()
 
-        console.log(patientsRes.data)
-        
+        if (res.ok) {
+          const users = data.users
+          const dentistList = users.filter(
+            (user) => user.userType === 'dentist'
+          )
+          const patientList = users.filter(
+            (user) => user.userType === 'patient'
+          )
 
-        setPatients(Array.isArray(patientsData) ? patientsData : [])
-        setDentists(Array.isArray(dentistsData) ? dentistsData : [])
-        setServices(Array.isArray(servicesData) ? servicesData : [])
-      } catch (err) {
-        setError('Failed to load dropdown data. Please try again.')
+          setDentists(dentistList)
+          setPatients(patientList)
+        } else {
+          alert(data.message || 'Failed to load users')
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error)
+        alert('Error fetching users')
       }
     }
 
-    fetchData()
+    fetchUsers()
   }, [])
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    })
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError('')
-    setSuccess('')
+    const appointmentDate = new Date(
+      `${formData.date}T${formData.time}`
+    ).toISOString()
+
+    const payload = {
+      patientId: formData.patientId,
+      dentistId: formData.dentistId,
+      appointmentDate,
+      reason: formData.description,
+    }
 
     try {
-      await createAppointment({
-        patientId,
-        dentistId,
-        serviceId,
-        appointmentDate,
-        appointmentTime,
-        reason,
-        notes,
+      const res = await fetch('http://localhost:3000/api/appointments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(payload),
       })
 
-      setSuccess('Appointment created successfully.')
-      setTimeout(() => navigate('/appointments'), 1500)
-    } catch (err) {
-      setError('Failed to create appointment. Please check your inputs.')
+      const data = await res.json()
+
+      if (res.ok) {
+        alert('Appointment created successfully!')
+        setFormData({
+          patientId: '',
+          dentistId: '',
+          date: '',
+          time: '',
+          description: '',
+        })
+      } else {
+        alert(data.message || 'Failed to create appointment')
+      }
+    } catch (error) {
+      console.error('Error creating appointment:', error)
+      alert('Error creating appointment')
     }
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white shadow-md rounded-lg mt-8">
-      <h2 className="text-2xl font-bold mb-6 text-center">
-        Create Appointment
-      </h2>
-
-      {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
-      {success && <p className="text-green-600 mb-4 text-center">{success}</p>}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Patient Select */}
-        <div>
-          <label className="block mb-1 font-medium">Patient:</label>
-          <select
-            value={patientId}
-            onChange={(e) => setPatientId(e.target.value)}
-            required
-            className="w-full p-2 border rounded"
+    <div className="flex justify-center items-center min-h-screen bg-gray-100">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-8 rounded shadow-md w-full max-w-lg"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">Create Appointment</h2>
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="text-sm text-blue-600 hover:underline"
           >
-            <option value="">Select Patient</option>
-            {Array.isArray(patients) &&
-              patients.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.firstName} {p.lastName}
-                </option>
-              ))}
+            Back to Dashboard
+          </button>
+        </div>
+
+        {/* Patient dropdown */}
+        <div className="mb-4">
+          <label className="block mb-1 font-semibold">Select Patient</label>
+          <select
+            name="patientId"
+            value={formData.patientId}
+            onChange={handleChange}
+            className="w-full border border-gray-300 px-3 py-2 rounded"
+            required
+          >
+            <option value="">-- Select Patient --</option>
+            {patients.map((patient) => (
+              <option key={patient._id} value={patient._id}>
+                {patient.name}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* Dentist Select */}
-        <div>
-          <label className="block mb-1 font-medium">Dentist:</label>
+        {/* Dentist dropdown */}
+        <div className="mb-4">
+          <label className="block mb-1 font-semibold">Select Dentist</label>
           <select
-            value={dentistId}
-            onChange={(e) => setDentistId(e.target.value)}
+            name="dentistId"
+            value={formData.dentistId}
+            onChange={handleChange}
+            className="w-full border border-gray-300 px-3 py-2 rounded"
             required
-            className="w-full p-2 border rounded"
           >
-            <option value="">Select Dentist</option>
-            {Array.isArray(dentists) &&
-              dentists.map((d) => (
-                <option key={d._id} value={d._id}>
-                  Dr. {d.firstName} {d.lastName} ({d.specialization})
-                </option>
-              ))}
+            <option value="">-- Select Dentist --</option>
+            {dentists.map((dentist) => (
+              <option key={dentist._id} value={dentist._id}>
+                {dentist.name}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* Service Select */}
-        <div>
-          <label className="block mb-1 font-medium">Service:</label>
-          <select
-            value={serviceId}
-            onChange={(e) => setServiceId(e.target.value)}
-            required
-            className="w-full p-2 border rounded"
-          >
-            <option value="">Select Service</option>
-            {Array.isArray(services) &&
-              services.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.name} (${s.price})
-                </option>
-              ))}
-          </select>
-        </div>
-
-        {/* Appointment Date */}
-        <div>
-          <label className="block mb-1 font-medium">Appointment Date:</label>
+        {/* Date, Time, Description */}
+        <div className="mb-4">
+          <label className="block mb-1 font-semibold">Date</label>
           <input
             type="date"
-            value={appointmentDate}
-            onChange={(e) => setAppointmentDate(e.target.value)}
+            name="date"
+            value={formData.date}
+            onChange={handleChange}
+            className="w-full border border-gray-300 px-3 py-2 rounded"
             required
-            className="w-full p-2 border rounded"
           />
         </div>
 
-        {/* Appointment Time */}
-        <div>
-          <label className="block mb-1 font-medium">Appointment Time:</label>
+        <div className="mb-4">
+          <label className="block mb-1 font-semibold">Time</label>
           <input
             type="time"
-            value={appointmentTime}
-            onChange={(e) => setAppointmentTime(e.target.value)}
+            name="time"
+            value={formData.time}
+            onChange={handleChange}
+            className="w-full border border-gray-300 px-3 py-2 rounded"
             required
-            className="w-full p-2 border rounded"
           />
         </div>
 
-        {/* Reason */}
-        <div>
-          <label className="block mb-1 font-medium">Reason:</label>
-          <input
-            type="text"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            required
-            className="w-full p-2 border rounded"
-          />
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label className="block mb-1 font-medium">Notes (Optional):</label>
+        <div className="mb-6">
+          <label className="block mb-1 font-semibold">Description</label>
           <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full p-2 border rounded"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            className="w-full border border-gray-300 px-3 py-2 rounded"
+            rows={3}
           />
         </div>
 
         <button
           type="submit"
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded"
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
         >
           Create Appointment
         </button>
@@ -191,3 +201,5 @@ export default function CreateAppointment() {
     </div>
   )
 }
+
+export default CreateAppointment

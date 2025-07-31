@@ -1,99 +1,153 @@
 import { useEffect, useState } from 'react'
-import api from '../api/axios'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { jwtDecode } from 'jwt-decode'
 
-export default function Dashboard() {
-  const [appointments, setAppointments] = useState([])
+const Dashboard = () => {
   const navigate = useNavigate()
+  const [userType, setUserType] = useState(null)
+  const [appointments, setAppointments] = useState([])
 
   useEffect(() => {
+    // Check if token exists, else redirect to login
     const token = localStorage.getItem('token')
     if (!token) {
       navigate('/login')
       return
     }
 
-    api
-      .get('/appointments')
-      .then((res) => {
-        setAppointments(res.data.appointments || [])
-      })
-      .catch((err) => {
-        if (err.response?.status === 401) {
-          localStorage.removeItem('token')
-          navigate('/login')
+    try {
+      const decoded = jwtDecode(token)
+      setUserType(decoded.userType)
+    } catch {
+      localStorage.removeItem('token')
+      navigate('/login')
+      return
+    }
+
+    // Fetch appointments
+    const fetchAppointments = async () => {
+      try {
+        const res = await fetch('http://localhost:3000/api/appointments', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        const data = await res.json()
+        if (res.ok) {
+          setAppointments(data.appointments)
+        } else {
+          alert(data.message || 'Failed to load appointments')
         }
-      })
+      } catch (error) {
+        console.error('Failed to fetch appointments:', error)
+        alert('Failed to load appointments')
+      }
+    }
+
+    fetchAppointments()
   }, [navigate])
 
-  const handleLogout = () => {
+  // Logout handler
+  const logout = () => {
     localStorage.removeItem('token')
     navigate('/login')
   }
 
+  // Delete handler
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this appointment?'))
+      return
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`http://localhost:3000/api/appointments/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setAppointments((prev) => prev.filter((appt) => appt._id !== id))
+        alert('Appointment deleted')
+      } else {
+        alert(data.message || 'Failed to delete appointment')
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Error deleting appointment')
+    }
+  }
+
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Appointments</h1>
-        <div>
-          <Link
-            to="/appointments/create"
-            className="bg-green-600 text-white px-4 py-2 rounded mr-4 hover:bg-green-700"
+    <div className="max-w-6xl mx-auto p-6">
+      <header className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <div className="flex gap-4">
+          <button
+            onClick={() => navigate('/appointment')}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
             Create Appointment
-          </Link>
+          </button>
           <button
-            onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            onClick={logout}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
           >
             Logout
           </button>
         </div>
-      </div>
-      <table className="w-full border border-collapse">
-        <thead>
-          <tr className="bg-gray-100">
+      </header>
+
+      <h2 className="text-xl mb-6">Registered Appointments</h2>
+
+      <table className="w-full border-collapse border border-gray-300">
+        <thead className="bg-gray-200">
+          <tr>
             <th className="border p-2">Patient</th>
             <th className="border p-2">Dentist</th>
-            <th className="border p-2">Date</th>
-            <th className="border p-2">Time</th>
+            <th className="border p-2">Date & Time</th>
+            <th className="border p-2">Reason</th>
+            {(userType === 'admin' || userType === 'dentist') && (
+              <th className="border p-2">Actions</th>
+            )}
           </tr>
         </thead>
         <tbody>
-          {appointments.length === 0 ? (
+          {appointments.map((appt) => (
+            <tr key={appt._id} className="text-center border-t border-gray-300">
+              <td className="border p-2">{appt.patientId?.name || 'N/A'}</td>
+              <td className="border p-2">{appt.dentistId?.name || 'N/A'}</td>
+              <td className="border p-2">
+                {new Date(appt.appointmentDate).toLocaleString()}
+              </td>
+              <td className="border p-2">{appt.reason || '-'}</td>
+              {(userType === 'admin' || userType === 'dentist') && (
+                <td className="border p-2 space-x-2">
+                  <button
+                    onClick={() => handleDelete(appt._id)}
+                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))}
+          {appointments.length === 0 && (
             <tr>
-              <td colSpan="4" className="text-center p-4">
+              <td
+                colSpan={userType === 'admin' || userType === 'dentist' ? 5 : 4}
+                className="p-4"
+              >
                 No appointments found.
               </td>
             </tr>
-          ) : (
-            appointments.map((apt) => (
-              <tr key={apt._id}>
-                <td className="border p-2">
-                  {apt.patientId?.firstName
-                    ? `${apt.patientId.firstName} ${
-                        apt.patientId.lastName || ''
-                      }`
-                    : apt.patientId?.username || 'N/A'}
-                </td>
-                <td className="border p-2">
-                  {apt.dentistId?.firstName
-                    ? `${apt.dentistId.firstName} ${
-                        apt.dentistId.lastName || ''
-                      }`
-                    : apt.dentistId?.username || 'N/A'}
-                </td>
-                <td className="border p-2">
-                  {apt.appointmentDate
-                    ? new Date(apt.appointmentDate).toLocaleDateString()
-                    : 'N/A'}
-                </td>
-                <td className="border p-2">{apt.appointmentTime || 'N/A'}</td>
-              </tr>
-            ))
           )}
         </tbody>
       </table>
     </div>
   )
 }
+
+export default Dashboard
